@@ -1,14 +1,14 @@
 ## Required modules
 
   util      = require 'util'
-  mysql     = require 'mysql'
+  pg        = require 'pg'
   ept_email = require 'ept/email'
   tests     = require 'ept/tests'
   conf      = require "#{__dirname}/../conf/main.conf"
 
 ## Connect to MySQL
 
-  dbh = mysql.createClient conf.db
+  dbh = mysql.createConnection conf.db
 
 ## Set up an hourly job to delete old results
 
@@ -183,3 +183,6 @@
   removePlusAddressing = ( email ) ->
     capture = email.match /^(.+)(?:\+.*)@((?:gmail|googlemail)\.com)$/i
     return if capture? then "#{capture[1]}@#{capture[2]}" else email
+
+# Close connection
+  dbh.end()
