@@ -138,7 +138,7 @@
 
 ## Start Listening
 
-  server = app.listen conf.site.port
+  server = app.listen process.env.PORT or conf.site.port
 
   if server.address()
     console.log "Express server listening on port %d in %s mode", server.address().port, app.settings.env
