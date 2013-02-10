@@ -1,7 +1,7 @@
 ## Required modules
 
 util      = require 'util'
-pg        = require 'pg'
+pg        = require('pg').native
 ept_email = require 'ept/email'
 tests     = require 'ept/tests'
 conf      = require "#{__dirname}/../conf/main.conf"
@@ -57,7 +57,7 @@ exports.optout  = ( req, res ) ->
       if status then return sendHTML res, 'optout', email: email, success: true
       if ept_email.validateFormat email
         salt = getSalt()
-        sql = 'INSERT INTO optout SET ctime=?, client_ip=?, salt=?, salted_email_hash=MD5(CONCAT(?,LOWER(?)))'
+        sql = 'INSERT INTO optout(ctime, client_ip, salt, salted_email_hash) values ($1, $2, $3, MD5(CONCAT($4,LOWER($5))))'
 
         pg.connect process.env.DATABASE_URL, (err, client) ->
 
@@ -84,19 +84,30 @@ submit = ( email, client_ip, cb ) ->
     domain     = email.replace /.+@/, ''
 
     salt = getSalt()
-    sql = 'INSERT INTO email SET salt=?, salted_email_hash=MD5(CONCAT(?,LOWER(?))), client_ip=?, callback_code=SUBSTRING(MD5(RAND()),3,16), lookup_code=SUBSTRING(MD5(RAND()),3,16), ctime=?'
+    sql = 'INSERT INTO email(salt, salted_email_hash, client_ip, callback_code, lookup_code, ctime)
+            values(
+              $1,
+              MD5(CONCAT($2::text, LOWER($3))),
+              $4,
+              SUBSTRING(MD5(RANDOM()::text),3,16),
+              SUBSTRING(MD5(RANDOM()::text),3,16),
+              $5
+            )'
 
     pg.connect process.env.DATABASE_URL, (err, client) ->
 
       client.query sql, [ salt, salt, removePlusAddressing("#{local_part}@#{domain}"), client_ip, Date.now() ], (err, info) ->
         if err?
+          console.log err, info
           cb error: "System error. Please try again"
         else
-          client.query 'SELECT lookup_code, callback_code FROM email WHERE email_id=?', [ info.insertId ], (err, info) ->
+          client.query 'SELECT lookup_code, callback_code FROM email WHERE email_id=lastval()', (err, info) ->
             if err?
+              console.log err, info
               cb error: "System error. Please try again"
             else
-              info = info[0]
+              console.log err, info
+              info = info.rows[0]
               ept_email.sendEmail {
                 base_domain:  conf.site.domain
                 base_url:  "#{conf.site.proto}://#{conf.site.domain}#{conf.site.path}"
@@ -106,6 +117,8 @@ submit = ( email, client_ip, cb ) ->
                 to:    email
               },
               ( err, status ) ->
+                console.log "=================================================="
+                console.log err, status
                 if err?
                   cb error: err
                 else
@@ -117,6 +130,11 @@ clientIP = ( req ) ->
   return client_ip
 
 sendHTML = ( res, name, obj ) ->
+  pg.connect process.env.DATABASE_URL, (err, client) ->
+    query = client.query 'SELECT * from email'
+    query.on 'row', (row) ->
+      console.log JSON.stringify row
+
   #sendCacheHeaders res, 1800 unless obj?
   obj?.conf = conf unless obj?.conf?
   res.charset = 'UTF-8'
@@ -170,6 +188,7 @@ authoriseSending = ( email, client_ip, cb ) ->
     else if --countdown == 0 then cb()
 
 optedOut = ( email, cb ) ->
+  console.log process.env.DATABASE_URL
   pg.connect process.env.DATABASE_URL, (err, client) ->
 
     sql = 'SELECT ctime FROM optout WHERE salted_email_hash=MD5(CONCAT(salt,LOWER(?))) LIMIT 1'
@@ -183,15 +202,17 @@ emailRate = ( email, cb ) ->
   domain     = email.replace /.+@/, ''
 
   pg.connect process.env.DATABASE_URL, (err, client) ->
-    sql = 'SELECT COUNT(*) AS counter FROM email WHERE salted_email_hash=MD5(CONCAT(salt,LOWER(?))) AND ctime > ?'
+    sql = 'SELECT COUNT(*) AS counter FROM email WHERE salted_email_hash=MD5(CONCAT(salt,LOWER($1))) AND ctime > $2'
     client.query sql, [ removePlusAddressing("#{local_part}@#{domain}"), Date.now()-86400000 ], ( err, info ) ->
-      cb if err? then 0 else info[0].counter
+      console.log err, info
+      cb if err? then 0 else info.rows[0].counter
 
 ipRate = ( ip, cb ) ->
   pg.connect process.env.DATABASE_URL, (err, client) ->
-    sql = 'SELECT COUNT(*) AS counter FROM email WHERE client_ip=? AND ctime > ?'
+    sql = 'SELECT COUNT(*) AS counter FROM email WHERE client_ip=$1 AND ctime > $2'
     client.query sql, [ ip, Date.now()-86400000 ], ( err, info ) ->
-      cb if err? then 0 else info[0].counter
+      console.log err, info
+      cb if err? then 0 else info.rows[0].counter
 
 removePlusAddressing = ( email ) ->
   capture = email.match /^(.+)(?:\+.*)@((?:gmail|googlemail)\.com)$/i

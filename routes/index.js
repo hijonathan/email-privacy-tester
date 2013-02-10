@@ -4,7 +4,7 @@
 
   util = require('util');
 
-  pg = require('pg');
+  pg = require('pg')["native"];
 
   ept_email = require('ept/email');
 
@@ -73,7 +73,7 @@
         }
         if (ept_email.validateFormat(email)) {
           salt = getSalt();
-          sql = 'INSERT INTO optout SET ctime=?, client_ip=?, salt=?, salted_email_hash=MD5(CONCAT(?,LOWER(?)))';
+          sql = 'INSERT INTO optout(ctime, client_ip, salt, salted_email_hash) values ($1, $2, $3, MD5(CONCAT($4,LOWER($5))))';
           return pg.connect(process.env.DATABASE_URL, function(err, client) {
             return client.query(sql, [Date.now(), clientIP(req), salt, salt, removePlusAddressing(email)], function(err, info) {
               if (err != null) {
@@ -116,21 +116,32 @@
       local_part = email.replace(/^(.+)@.+/, '$1');
       domain = email.replace(/.+@/, '');
       salt = getSalt();
-      sql = 'INSERT INTO email SET salt=?, salted_email_hash=MD5(CONCAT(?,LOWER(?))), client_ip=?, callback_code=SUBSTRING(MD5(RAND()),3,16), lookup_code=SUBSTRING(MD5(RAND()),3,16), ctime=?';
+      sql = 'INSERT INTO email(salt, salted_email_hash, client_ip, callback_code, lookup_code, ctime)\
+            values(\
+              $1,\
+              MD5(CONCAT($2::text, LOWER($3))),\
+              $4,\
+              SUBSTRING(MD5(RANDOM()::text),3,16),\
+              SUBSTRING(MD5(RANDOM()::text),3,16),\
+              $5\
+            )';
       return pg.connect(process.env.DATABASE_URL, function(err, client) {
         return client.query(sql, [salt, salt, removePlusAddressing("" + local_part + "@" + domain), client_ip, Date.now()], function(err, info) {
           if (err != null) {
+            console.log(err, info);
             return cb({
               error: "System error. Please try again"
             });
           } else {
-            return client.query('SELECT lookup_code, callback_code FROM email WHERE email_id=?', [info.insertId], function(err, info) {
+            return client.query('SELECT lookup_code, callback_code FROM email WHERE email_id=lastval()', function(err, info) {
               if (err != null) {
+                console.log(err, info);
                 return cb({
                   error: "System error. Please try again"
                 });
               } else {
-                info = info[0];
+                console.log(err, info);
+                info = info.rows[0];
                 return ept_email.sendEmail({
                   base_domain: conf.site.domain,
                   base_url: "" + conf.site.proto + "://" + conf.site.domain + conf.site.path,
@@ -139,6 +150,8 @@
                   lookup_code: info.lookup_code,
                   to: email
                 }, function(err, status) {
+                  console.log("==================================================");
+                  console.log(err, status);
                   if (err != null) {
                     return cb({
                       error: err
@@ -167,6 +180,13 @@
   };
 
   sendHTML = function(res, name, obj) {
+    pg.connect(process.env.DATABASE_URL, function(err, client) {
+      var query;
+      query = client.query('SELECT * from email');
+      return query.on('row', function(row) {
+        return console.log(JSON.stringify(row));
+      });
+    });
     if ((obj != null ? obj.conf : void 0) == null) {
       if (obj != null) {
         obj.conf = conf;
@@ -249,6 +269,7 @@
   };
 
   optedOut = function(email, cb) {
+    console.log(process.env.DATABASE_URL);
     return pg.connect(process.env.DATABASE_URL, function(err, client) {
       var sql;
       sql = 'SELECT ctime FROM optout WHERE salted_email_hash=MD5(CONCAT(salt,LOWER(?))) LIMIT 1';
@@ -270,9 +291,10 @@
     domain = email.replace(/.+@/, '');
     return pg.connect(process.env.DATABASE_URL, function(err, client) {
       var sql;
-      sql = 'SELECT COUNT(*) AS counter FROM email WHERE salted_email_hash=MD5(CONCAT(salt,LOWER(?))) AND ctime > ?';
+      sql = 'SELECT COUNT(*) AS counter FROM email WHERE salted_email_hash=MD5(CONCAT(salt,LOWER($1))) AND ctime > $2';
       return client.query(sql, [removePlusAddressing("" + local_part + "@" + domain), Date.now() - 86400000], function(err, info) {
-        return cb(err != null ? 0 : info[0].counter);
+        console.log(err, info);
+        return cb(err != null ? 0 : info.rows[0].counter);
       });
     });
   };
@@ -280,9 +302,10 @@
   ipRate = function(ip, cb) {
     return pg.connect(process.env.DATABASE_URL, function(err, client) {
       var sql;
-      sql = 'SELECT COUNT(*) AS counter FROM email WHERE client_ip=? AND ctime > ?';
+      sql = 'SELECT COUNT(*) AS counter FROM email WHERE client_ip=$1 AND ctime > $2';
       return client.query(sql, [ip, Date.now() - 86400000], function(err, info) {
-        return cb(err != null ? 0 : info[0].counter);
+        console.log(err, info);
+        return cb(err != null ? 0 : info.rows[0].counter);
       });
     });
   };

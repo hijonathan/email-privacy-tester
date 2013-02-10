@@ -4,7 +4,7 @@
 
   util = require('util');
 
-  pg = require('pg');
+  pg = require('pg')["native"];
 
   conf = require("" + __dirname + "/../conf/main.conf");
 
