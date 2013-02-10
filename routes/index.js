@@ -248,7 +248,6 @@
   };
 
   optedOut = function(email, cb) {
-    console.log(JSON.stringify(process.env));
     return pg.connect(process.env.DATABASE_URL, function(err, client) {
       var sql;
       sql = 'SELECT ctime FROM optout WHERE salted_email_hash=MD5(CONCAT(salt,LOWER(?))) LIMIT 1';

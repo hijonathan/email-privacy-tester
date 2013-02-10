@@ -168,7 +168,6 @@ authoriseSending = ( email, client_ip, cb ) ->
     else if --countdown == 0 then cb()
 
 optedOut = ( email, cb ) ->
-  console.log JSON.stringify process.env
   pg.connect process.env.DATABASE_URL, (err, client) ->
 
     sql = 'SELECT ctime FROM optout WHERE salted_email_hash=MD5(CONCAT(salt,LOWER(?))) LIMIT 1'
