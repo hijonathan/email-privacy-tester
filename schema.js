@@ -5,5 +5,5 @@ var pg = require('pg').native
 
 pg.connect(connectionString, function(err, client) {
 	client.query('create table email (email_id serial');
-}
+});
 
