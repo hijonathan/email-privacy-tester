@@ -9,7 +9,7 @@
   "dependencies": {
     "coffee-script": ">= 0.0.1",
     "eco": ">= 0.0.1",
-    "express": ">= 3",
+    "express": "latest",
     "less": ">= 0.0.1",
     "libxmljs": ">= 0.0.1",
     "mailparser": ">= 0.0.1",

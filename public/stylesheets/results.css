@@ -1,0 +1,140 @@
+.view div {
+  text-align: left;
+}
+#bloginfo {
+  margin: -1em 0 1em 0;
+  text-align: center;
+}
+#email_status {
+  -webkit-box-shadow: 0px 0px 3px 3px #71aa9a;
+  -moz-box-shadow: 0px 0px 3px 3px #71aa9a;
+  box-shadow: 0px 0px 3px 3px #71aa9a;
+  -webkit-border-radius: 0.5em;
+  -moz-border-radius: 0.5em;
+  border-radius: 0.5em;
+  padding: 1em;
+  background-color: #f8f8f8;
+  margin-bottom: 1em;
+}
+#email_status h2 {
+  padding-bottom: 0.3em;
+}
+#email_status h2 .status {
+  text-align: center;
+  text-transform: uppercase;
+  font-size: 0.7692307692307692em;
+  font-weight: bold;
+  float: right;
+  -webkit-box-shadow: 0px 0px 2px 2px #000000;
+  -moz-box-shadow: 0px 0px 2px 2px #000000;
+  box-shadow: 0px 0px 2px 2px #000000;
+  padding: 0.3em 1.3em;
+  min-width: 4em;
+  -webkit-border-radius: 1em;
+  -moz-border-radius: 1em;
+  border-radius: 1em;
+  background-color: #000;
+  color: #fff;
+}
+#email_status td {
+  padding: 0.2em 1em 0.2em 1em;
+  width: 100%;
+}
+#email_status td.key {
+  padding-right: 1em;
+  white-space: nowrap;
+  width: auto;
+}
+#email_status .message {
+  padding-left: 2em;
+}
+#email_status.sent .status {
+  background-color: #0a0;
+}
+#email_status.rejected .status {
+  background-color: #a00;
+}
+body.with-js .status {
+  display: none;
+}
+#testMeta {
+  -webkit-box-shadow: 0px 0px 3px 3px #71aa9a;
+  -moz-box-shadow: 0px 0px 3px 3px #71aa9a;
+  box-shadow: 0px 0px 3px 3px #71aa9a;
+  -webkit-border-radius: 0.5em;
+  -moz-border-radius: 0.5em;
+  border-radius: 0.5em;
+  padding: 1em;
+  background-color: #f8f8f8;
+  margin-bottom: 1em;
+}
+#testMeta h2 {
+  padding: 0.3em 0;
+}
+#testMeta ul {
+  list-style-type: none;
+  display: inline;
+  margin-left: 1em;
+}
+#testMeta ol {
+  margin-left: 2.5em;
+}
+#testMeta #clientIPs li {
+  display: inline;
+}
+#testMeta #clientIPs li:after {
+  content: ', ';
+}
+#testMeta #clientIPs li:last-child:after {
+  content: '';
+}
+#testHits {
+  font-size: 0.9em;
+  text-align: left;
+}
+#testHits div {
+  display: inline-block;
+  *display: inline;
+  *zoom: 1;
+  *margin: 0 .3em;
+  text-align: center;
+  line-height: 1.3;
+  white-space: nowrap;
+  margin-top: 0.5em;
+}
+#testHits div:first-child {
+  *margin-left: 0;
+}
+#testHits div:last-child {
+  *margin-right: 0;
+}
+#testHits div a {
+  background-color: #a00;
+  color: #fff;
+  text-decoration: none;
+  display: block;
+  padding: 0.7em 1em;
+  -webkit-border-radius: 1.75em;
+  -moz-border-radius: 1.75em;
+  border-radius: 1.75em;
+  opacity: 0.8;
+  -webkit-transition: background-color 1.7s ease-out;
+  -moz-transition: background-color 1.7s ease-out;
+  -ms-transition: background-color 1.7s ease-out;
+  -o-transition: background-color 1.7s ease-out;
+  transition: background-color 1.7s ease-out;
+}
+#testHits div a:hover {
+  opacity: 1;
+}
+#testHits div.nohit a {
+  background-color: #888;
+}
+#testHits div.flash a {
+  background-color: #cc0;
+}
+#testHits span {
+  font-size: 0.8em;
+  font-style: italic;
+  color: #000;
+}
