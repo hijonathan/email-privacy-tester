@@ -140,6 +140,8 @@ getSalt = () ->
   return salt
 
 authoriseSending = ( email, client_ip, cb ) ->
+  console.log email, client_ip, cb
+
   [ done, countdown ] = [ false, 4 ]
 
   ept_email.validate email, ( err ) ->

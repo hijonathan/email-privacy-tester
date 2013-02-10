@@ -200,6 +200,7 @@
 
   authoriseSending = function(email, client_ip, cb) {
     var countdown, done, _ref;
+    console.log(email, client_ip, cb);
     _ref = [false, 4], done = _ref[0], countdown = _ref[1];
     ept_email.validate(email, function(err) {
       if (done) {
