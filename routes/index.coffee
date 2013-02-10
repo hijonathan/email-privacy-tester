@@ -88,11 +88,11 @@ submit = ( email, client_ip, cb ) ->
 
     pg.connect process.env.DATABASE_URL, (err, client) ->
 
-      dbh.client sql, [ salt, salt, removePlusAddressing("#{local_part}@#{domain}"), client_ip, Date.now() ], (err, info) ->
+      client.query sql, [ salt, salt, removePlusAddressing("#{local_part}@#{domain}"), client_ip, Date.now() ], (err, info) ->
         if err?
           cb error: "System error. Please try again"
         else
-          dbh.client 'SELECT lookup_code, callback_code FROM email WHERE email_id=?', [ info.insertId ], (err, info) ->
+          client.query 'SELECT lookup_code, callback_code FROM email WHERE email_id=?', [ info.insertId ], (err, info) ->
             if err?
               cb error: "System error. Please try again"
             else

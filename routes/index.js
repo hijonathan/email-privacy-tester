@@ -118,13 +118,13 @@
       salt = getSalt();
       sql = 'INSERT INTO email SET salt=?, salted_email_hash=MD5(CONCAT(?,LOWER(?))), client_ip=?, callback_code=SUBSTRING(MD5(RAND()),3,16), lookup_code=SUBSTRING(MD5(RAND()),3,16), ctime=?';
       return pg.connect(process.env.DATABASE_URL, function(err, client) {
-        return dbh.client(sql, [salt, salt, removePlusAddressing("" + local_part + "@" + domain), client_ip, Date.now()], function(err, info) {
+        return client.query(sql, [salt, salt, removePlusAddressing("" + local_part + "@" + domain), client_ip, Date.now()], function(err, info) {
           if (err != null) {
             return cb({
               error: "System error. Please try again"
             });
           } else {
-            return dbh.client('SELECT lookup_code, callback_code FROM email WHERE email_id=?', [info.insertId], function(err, info) {
+            return client.query('SELECT lookup_code, callback_code FROM email WHERE email_id=?', [info.insertId], function(err, info) {
               if (err != null) {
                 return cb({
                   error: "System error. Please try again"

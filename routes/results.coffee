@@ -1,16 +1,12 @@
 ## Dependencies
 
 util  = require 'util'
-mysql = require 'mysql'
+pg = require 'pg'
 conf  = require "#{__dirname}/../conf/main.conf"
 tests = require 'ept/tests'
 
 emitter = new (require('events').EventEmitter)()
 emitter.setMaxListeners 100
-
-## Connect to the DB
-
-dbh = mysql.createConnection conf.db
 
 exports.foo = ( req, res ) ->
   lookupCode = req.params.lookupCode
@@ -86,9 +82,11 @@ testCallbackHTTP = ( req, res, email, callbackCode, name, clientIP ) ->
   httpXForwardedFor = if httpXForwardedFor.length == 0 then null else httpXForwardedFor.join ','
 
   sql = 'INSERT INTO callback SET email_id=?, ctime=?, name=?, client_ip=?, http_user_agent=?, http_x_forwarded_for=?'
-  dbh.query sql, [ email.email_id, Date.now(), name, clientIP, req.get('user-agent'), httpXForwardedFor ], ( err, info ) ->
-    ## Let long-poll clients know about the update
-    emitter.emit "newCallback#{email.lookupCode}" unless err?
+
+  pg.connect process.env.DATABASE_URL, (err, client) ->
+    client.query sql, [ email.email_id, Date.now(), name, clientIP, req.get('user-agent'), httpXForwardedFor ], ( err, info ) ->
+      ## Let long-poll clients know about the update
+      emitter.emit "newCallback#{email.lookupCode}" unless err?
 
 testCallbackEmail = ( req, res, email, callbackCode, name ) ->
 
@@ -97,9 +95,10 @@ testCallbackEmail = ( req, res, email, callbackCode, name ) ->
   subject   = emailData.subject
 
   sql = 'INSERT INTO callback SET email_id=?, ctime=?, name=?, email_subject=?'
-  dbh.query sql, [ email.email_id, ctime, name, subject ], ( err, info ) ->
-    ## Let long-poll clients know about the update
-    emitter.emit "newCallback#{email.lookupCode}" unless err?
+  pg.connect process.env.DATABASE_URL, (err, client) ->
+    client.query sql, [ email.email_id, ctime, name, subject ], ( err, info ) ->
+      ## Let long-poll clients know about the update
+      emitter.emit "newCallback#{email.lookupCode}" unless err?
 
 testCallbackDNS = ( req, res, email, callbackCode, name ) ->
 
@@ -107,9 +106,10 @@ testCallbackDNS = ( req, res, email, callbackCode, name ) ->
   clientIP = req.body?.clientIP
 
   sql = 'INSERT INTO callback SET email_id=?, ctime=?, name=?, client_ip=?'
-  dbh.query sql, [ email.email_id, ctime, name, clientIP ], ( err, info ) ->
-    ## let long-poll clients know about the update
-    emitter.emit "newCallback#{email.lookupCode}" unless err?
+  pg.connect process.env.DATABASE_URL, (err, client) ->
+    client.query sql, [ email.email_id, ctime, name, clientIP ], ( err, info ) ->
+      ## let long-poll clients know about the update
+      emitter.emit "newCallback#{email.lookupCode}" unless err?
 
 ## Status callbacks
 
@@ -128,9 +128,10 @@ exports.emailStatusCallback = ( req, res ) ->
     return if err? or not email?
 
     sql = 'INSERT INTO email_log SET email_log_type_id=(SELECT email_log_type_id FROM email_log_type WHERE name=?), email_id=?, ctime=?, message=?'
-    dbh.query sql, [ status, email.email_id, mtime, message ], ( err, info ) ->
-      ## Let long-poll clients now about the update
-      emitter.emit "newEmailLog#{email.lookupCode}" unless err?
+    pg.connect process.env.DATABASE_URL, (err, client) ->
+      client.query sql, [ status, email.email_id, mtime, message ], ( err, info ) ->
+        ## Let long-poll clients now about the update
+        emitter.emit "newEmailLog#{email.lookupCode}" unless err?
 
 ## Long-poll meta refresh for new results
 
@@ -217,7 +218,8 @@ exports.getResultsHTML = ( req, res ) ->
 ## Look up results
 
 getResults = ( lookupType, code, callback ) ->
-  dbh.query "SELECT email_id, lookup_code AS lookupCode, ctime FROM email WHERE #{lookupType}=?", [code], ( err, info ) ->
+  pg.connect process.env.DATABASE_URL, (err, client) ->
+  client.query "SELECT email_id, lookup_code AS lookupCode, ctime FROM email WHERE #{lookupType}=?", [code], ( err, info ) ->
     callback err if err?
     if info.length
       info[0].ctimeAge = humanAge info[0].ctime
@@ -228,7 +230,8 @@ getResults = ( lookupType, code, callback ) ->
 ## Look for updates to the email log table since your last check
 
 getNewEmailStatus = ( lookupCode, emailLogId, callback ) ->
-  dbh.query 'SELECT email_log.email_log_id AS emailLogId, email_log_type.name AS status, email_log.ctime AS mtime, email_log.message FROM email LEFT JOIN email_log ON email.email_id=email_log.email_id LEFT JOIN email_log_type ON email_log.email_log_type_id=email_log_type.email_log_type_id WHERE email.lookup_code=? AND email_log.email_log_id > ? ORDER BY email_log.email_log_id', [ lookupCode, emailLogId ], ( err, rows ) ->
+  pg.connect process.env.DATABASE_URL, (err, client) ->
+  client.query 'SELECT email_log.email_log_id AS emailLogId, email_log_type.name AS status, email_log.ctime AS mtime, email_log.message FROM email LEFT JOIN email_log ON email.email_id=email_log.email_id LEFT JOIN email_log_type ON email_log.email_log_type_id=email_log_type.email_log_type_id WHERE email.lookup_code=? AND email_log.email_log_id > ? ORDER BY email_log.email_log_id', [ lookupCode, emailLogId ], ( err, rows ) ->
     callback err if err?
 
     mostRecentLog = null
@@ -248,7 +251,8 @@ getNewEmailStatus = ( lookupCode, emailLogId, callback ) ->
 getNewTestHits = ( lookupCode, callbackId, callback ) ->
   sql = 'SELECT callback.callback_id AS callbackId, callback.ctime, callback.name, callback.client_ip AS clientIP, callback.http_user_agent AS httpUserAgent, callback.http_x_forwarded_for as httpXForwardedFor FROM email LEFT JOIN callback ON email.email_id=callback.email_id WHERE email.lookup_code=? AND callback.callback_id > ? ORDER BY callback.callback_id DESC'
 
-  dbh.query sql, [ lookupCode, callbackId ], ( err, rows ) ->
+pg.connect process.env.DATABASE_URL, (err, client) ->
+  client.query sql, [ lookupCode, callbackId ], ( err, rows ) ->
     if err? or rows.length == 0 then return callback err, null, callbackId
     results = {}
     for hit in rows
@@ -314,6 +318,3 @@ sendJSON = ( res, obj ) ->
   res.charset = 'UTF-8'
   res.set 'Content-Type', 'application/json'
   res.end JSON.stringify obj
-
-# Close
-dbh.end()
